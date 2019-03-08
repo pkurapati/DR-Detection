@@ -40,7 +40,7 @@ np.random.seed(0)
 # In[178]:
 
 
-from keras.models import Sequential
+from keras.models import Sequential,Model
 from keras.layers.normalization import BatchNormalization
 from keras.layers.convolutional import Conv2D
 from keras.layers.convolutional import Convolution2D
@@ -56,6 +56,8 @@ from keras.wrappers.scikit_learn import KerasClassifier
 from keras.utils import to_categorical
 import tensorflow as tf
 from keras.models import model_from_json
+from keras import applications
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TensorBoard, EarlyStopping
 
 
 
@@ -118,7 +120,7 @@ images_percent = [50,15,20,8,7]
 for level in range(5):
     # Get respective number of images in each level
     number_of_images = int(images_percent[level]*IMAGE_SAMPLE/100)
-    sample_images = orig_label[orig_label.level==level].sample(n=number_of_images,axis=0)
+    sample_images = orig_label[orig_label.level==level].sample(n=number_of_images,axis=0,random_state=42)
     for i in range(len(sample_images)):
         image_name = sample_images.iloc[i].image
         #image_name = sample_images.iloc[i].image+'.jpeg'
@@ -137,18 +139,48 @@ train_images = image_list[:n_train]
 test_images = image_list[n_train:]
 
 
+def create_data_labels_aug(image_list,orientation):
+    """ This function is to be used if one of the images is flipped, to maintain same orientation"""
+    image_dir = os.getcwd()+'/Retinal-Images'+'/train_resize_224_flop/'
+    data = []
+    labels = []
+    augmentation = "-flop"
+    for filename in image_list:
+        image_orientation = filename.split('.')[0].split('_')[1]
+        if(image_orientation == orientation):
+            imagePath = image_dir + filename + augmentation + ".jpeg"
+        else:
+            imagePath = image_dir + filename + ".jpeg"
+        if os.path.isfile(imagePath):
+            image = cv2.imread(imagePath)
+            image = img_to_array(image)
+            data.append(image)
+            # Get the class label from the image and update the
+            # labels list
+            label = orig_label[orig_label.image==filename].level.values[0]
+            # Change the label to binary
+            if label>0:
+                label=1
+            labels.append(label)
 
+    # Convert the values between 0-1
+    #data = np.array(data, dtype="float") / 255.0
+    data = np.array(data, dtype="int")
+    labels = np.array(labels)
+    return(data,labels)
 
 # Load the data with image augmentation
 # 128x128 data to start with
-def create_data_labels(image_list,pre_process=True):
+def create_data_labels_pp(image_list,pre_process=True):
+    """ Function to load the data if augmentation is preprocessed"""
     image_dir = os.getcwd()+'/Retinal-Images'+'/train_resize_224/'
     data = []
     labels = []
-    aug_list = ["-flip","-flop","-rs"]
+    #aug_list = ["-flip","-flop","-rs"]
+    aug_list = ["-flop"]
     for filename in image_list:
         if(pre_process):
-            for aug_n in range(4):
+            for aug_n in range(len(aug_list)):
                 if aug_n!=0:
                     aug = aug_list[aug_n-1]
                     imagePath = image_dir + filename + aug + ".jpeg"
@@ -193,9 +225,11 @@ def create_data_labels(image_list,pre_process=True):
 
 # In[152]:
 
+trainX,trainY = create_data_labels_pp(train_images,pre_process=False)
+testX,testY = create_data_labels_pp(test_images,pre_process=False)
 
-trainX,trainY = create_data_labels(train_images,pre_process=False)
-testX,testY = create_data_labels(test_images,pre_process=False)
+#trainX,trainY = create_data_labels_aug(train_images,orientation='left')
+#testX,testY = create_data_labels_aug(test_images,orientation='left')
 
 
 # In[153]:
@@ -282,6 +316,27 @@ def load_model():
 
 # In[179]:
 
+def VGG_16_TL():
+    model = applications.VGG16(weights = "imagenet", include_top=False, input_shape = (length, width, depth))
+    for layer in model.layers[:5]:
+        layer.trainable = False
+    
+    #Adding custom Layers 
+    x = model.output
+    x = Flatten()(x)
+    x = Dense(4096, activation="relu")(x)
+    x = Dropout(0.5)(x)
+    x = Dense(4096, activation="relu")(x)
+    x = Dropout(0.5)(x)
+    predictions = Dense(num_classes, activation="softmax")(x)
+    adam_opt = Adam(lr=0.01)
+    rms_opt = RMSprop(lr=0.01)
+    sgd = SGD(lr=0.001, decay=1e-6, momentum=0.5, nesterov=True)
+    # creating the final model 
+    model_final = Model(input = model.input, output = predictions)
+    model_final.compile(loss = 'binary_crossentropy', optimizer = sgd, metrics = ['accuracy'])
+
+    return model_final
 
 def VGG_16(weights_path=None):
     model = Sequential()
