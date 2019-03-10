@@ -24,7 +24,6 @@ from sklearn.linear_model import LinearRegression
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import GaussianNB
-from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import classification_report
 from sklearn.metrics import cohen_kappa_score
 
@@ -114,9 +113,9 @@ from pyimagesearch.preprocessing import AspectAwarePreprocessor
 
 
 image_list = list()
-IMAGE_SAMPLE = 5000
+IMAGE_SAMPLE = 35000
 # We create a toy dataset of 'N' images, maintaining the split of the original 
-images_percent = [50,15,20,8,7]
+images_percent = [73.6,6.9,15.1,2.4,2]
 for level in range(5):
     # Get respective number of images in each level
     number_of_images = int(images_percent[level]*IMAGE_SAMPLE/100)
@@ -133,7 +132,7 @@ len(image_list)
 
 random.shuffle(image_list)
 # 80% is trained
-n_train = int(IMAGE_SAMPLE*0.8)
+n_train = int(IMAGE_SAMPLE*0.94)
 n_test = IMAGE_SAMPLE-n_train
 train_images = image_list[:n_train]
 test_images = image_list[n_train:]
@@ -264,7 +263,7 @@ test_Y = np.argmax(testY,axis=1)
 # In[86]:
 
 
-#aug = ImageDataGenerator(horizontal_flip=True, zoom_range=0.2)
+aug = ImageDataGenerator(rotation_range=25,shear_range=0.2,zoom_range=0.2)
 
 #aug = ImageDataGenerator(rotation_range=25, width_shift_range=0.1,
 #                         height_shift_range=0.1, shear_range=0.2, zoom_range=0.2,
@@ -274,7 +273,7 @@ test_Y = np.argmax(testY,axis=1)
 # In[87]:
 
 
-#aug.fit(trainX)
+aug.fit(trainX)
 
 
 # In[129]:
@@ -296,8 +295,8 @@ def save_model(model,vgg=True):
     now = datetime.datetime.now()
     day = str(now)[:10]
     if vgg:
-        arch_name = 'model_architecture_vgg_'+day+'.json'
-        model_weights = 'model_weights_vgg_'+day+'.h5'
+        arch_name = 'model_architecture_vgg_'+day+'35K_aug'+'.json'
+        model_weights = 'model_weights_vgg_'+day+'35K_aug'+'.h5'
     else:
         arch_name = 'model_architecture_s_cnn'+day+'.json'
         model_weights = 'model_weights_s_cnn'+day+'.h5'
@@ -318,7 +317,7 @@ def load_model():
 
 def VGG_16_TL():
     model = applications.VGG16(weights = "imagenet", include_top=False, input_shape = (length, width, depth))
-    for layer in model.layers[:5]:
+    for layer in model.layers[:9]:
         layer.trainable = False
     
     #Adding custom Layers 
@@ -408,16 +407,32 @@ def CNN_FF():
 
 
 # With Augmentation done during pre-process
-estimator_vgg_aug_pp = KerasClassifier(build_fn=VGG_16, epochs=10, batch_size=100)
-estimator_vgg_aug_pp.fit(trainX, trainY)
+#estimator_vgg_aug_pp = KerasClassifier(build_fn=VGG_16, epochs=10, batch_size=100)
+#estimator_vgg_aug_pp.fit(trainX, trainY)
+
+estimator_vgg = KerasClassifier(build_fn=VGG_16)
+epochs = 10
+batch_size = 100
+for e in range(epochs):
+    print('Epoch', e)
+    batches = 0
+    for x_batch, y_batch in aug.flow(trainX, trainY, batch_size=batch_size):
+        estimator_nn.fit(x_batch, y_batch)
+        batches += 1
+        if batches >= len(trainX) / 10:
+            # we need to break the loop by hand because
+            # the generator loops indefinitely
+            break
 
 
 # In[183]:
 
+# Save the model
+save_model(estimator_vgg)
 
 # Predict for test data
-prediction_vgg_aug_pp_proba=estimator_vgg_aug_pp.predict_proba(testX)
-prediction_vgg_aug_pp=estimator_vgg_aug_pp.predict(testX)
+prediction_vgg_aug_pp_proba=estimator_vgg.predict_proba(testX)
+prediction_vgg_aug_pp=estimator_vgg.predict(testX)
 
 
 # In[184]:
@@ -429,9 +444,11 @@ print(prediction_vgg_aug_pp)
 
 # In[185]:
 
+acc_score = np.mean(test_Y==prediction_vgg_aug_pp)
 
 rmse_val_vgg = RMSE(test_Y,prediction_vgg_aug_pp)
 # Find the overall RMSE value.
+print("Accuracy: ",acc_score)
 print("RMSE-VGG: ",rmse_val_vgg)
 print("Cohen-VGG: ",cohen_kappa_score(test_Y,prediction_vgg_aug_pp,weights='quadratic'))
 
@@ -442,7 +459,7 @@ print("Cohen-VGG: ",cohen_kappa_score(test_Y,prediction_vgg_aug_pp,weights='quad
 #rounded_prediction_s_cnn = np.around(prediction_nn)
 predict_df = pd.DataFrame([test_Y,prediction_vgg_aug_pp]).transpose()
 predict_df.columns = ['Orig_Score','Pred_Score_VGG']
-print(predict_df)
+
 
 
 # In[188]:
@@ -458,7 +475,6 @@ print(predict_df)
 # In[190]:
 
 
-save_model(estimator_vgg_aug_pp)
 
 
 
