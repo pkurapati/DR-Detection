@@ -90,28 +90,22 @@ orig_label = pd.read_csv("./Retinal-Images/trainLabels.csv")
 orig_label.head(5)
 
 
-def select_toy_images(image_label,N=-1,images_percent=list()):
-    """ Selects number of images from each class. By default it is ALL images"""
-    image_list = list()
-    final_images = pd.DataFrame(columns = image_label.columns)
-    # We create a toy dataset of 'N' images, maintaining the split of the original 
-    if N==-1:
-            # We need to pick all the images. No need to sample
-            # We can ignore the percentage here
-            final_images = image_label
-    else:
-        for level in range(5):
-        # Get respective number of images in each level
-            if len(images_percent)==5:
-                number_of_images = int(images_percent[level]*N/100)
-            else:
-                # We have no percentage of images. Setting the default safe percentage
-                images_percent = [73.6,6.9,15.1,2.4,2]
-                number_of_images = int(images_percent[level]*N/100)
-            sample_images = image_label[image_label.level==level].sample(n=number_of_images,axis=0)
-            frames = [final_images,sample_images]
-            final_images = pd.concat(frames).reset_index(drop=True)
-    return final_images 
+# In[6]:
+
+
+orig_label.count()
+
+
+# In[5]:
+
+
+orig_label.groupby(['level']).count()
+
+
+# In[113]:
+
+
+# In[135]:
 
 
 image_list = list()
