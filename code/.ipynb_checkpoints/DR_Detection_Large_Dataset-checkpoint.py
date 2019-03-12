@@ -110,18 +110,25 @@ def select_toy_images(image_label,N=-1,images_percent=list()):
     return final_images 
 
 
-def VGG_16_TL():
-    model = applications.VGG16(weights = "imagenet", include_top=False, input_shape = (length, width, depth))
-    for layer in model.layers[:9]:
-        layer.trainable = False
+def VGG_16_TL(input_shape,layers_to_skip=None,weights=None,include_top=True):
+    """ VGG 16 with Transfer Learning. Using Keras built in function"""
+    model = applications.VGG16(weights = weights, include_top=include_top, input_shape = input_shape)
+    if layers_to_skip:
+        if weights==None:
+            print("ERROR: You cannot have weights as none if layers_to_skip is non-zero")
+        else:
+            for layer in model.layers[:layers_to_skip]:
+                layer.trainable = False
+            #Adding custom Layers 
+            x = model.output
+            x = Flatten()(x)
+            x = Dense(4096, activation="relu")(x)
+            x = Dropout(0.5)(x)
+            x = Dense(4096, activation="relu")(x)
+            x = Dropout(0.5)(x)
+    else:
+        x = model.output
     
-    #Adding custom Layers 
-    x = model.output
-    x = Flatten()(x)
-    x = Dense(4096, activation="relu")(x)
-    x = Dropout(0.5)(x)
-    x = Dense(4096, activation="relu")(x)
-    x = Dropout(0.5)(x)
     predictions = Dense(num_classes, activation="softmax")(x)
     adam_opt = Adam(lr=0.01)
     rms_opt = RMSprop(lr=0.01)
@@ -129,7 +136,6 @@ def VGG_16_TL():
     # creating the final model 
     model_final = Model(input = model.input, output = predictions)
     model_final.compile(loss = 'binary_crossentropy', optimizer = sgd, metrics = ['accuracy'])
-
     return model_final
 
 def VGG_16(weights_path=None):
@@ -318,6 +324,10 @@ depth = 3
 num_classes = 2
 input_shape = (224,224,3)
 
+batch_size = 10
+steps_per_epoch = int(n_train/batch_size)
+validation_steps = int(n_val/batch_size)
+
 val_datagen = ImageDataGenerator()
 train_datagen = ImageDataGenerator(
         rescale=1./255,
@@ -347,7 +357,7 @@ print(model.summary())
 model.fit_generator(
         train_generator,
         validation_data=validation_generator,
-        nb_epoch=5)
+        nb_epoch=10,steps_per_epoch=steps_per_epoch,validation_steps=validation_steps)
 
 ###################
 # SAVE THE MODEL
