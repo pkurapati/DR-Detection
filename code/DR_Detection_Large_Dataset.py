@@ -281,7 +281,7 @@ images_list = list(toy_images.image)
 
 # 80% is trained and 20% is validation
 n_train = int(IMAGE_SAMPLE*0.8)
-n_val = IMAGE_SAMPLE-n_val
+n_val = IMAGE_SAMPLE-n_train
 train_images = images_list[:n_train]
 val_images = images_list[n_train:]
 
