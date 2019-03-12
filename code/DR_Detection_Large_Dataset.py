@@ -277,23 +277,36 @@ def preprocess(image,scale=224):
 
 # Load the csv data
 orig_label = pd.read_csv("./Retinal-Images/trainLabels.csv")
+# Load the test csv data
+test_label = pd.read_csv("./Retinal-Images/retinopathy_solution.csv")
+test_label.drop('Usage',inplace=True,axis=1)
 
+
+##############
+#TRAIN SAMPLE
+##############
 IMAGE_SAMPLE = 35000
 images_percent = [73.6,6.9,15.1,2.4,2]
-
-
 toy_images = select_toy_images(orig_label,N=IMAGE_SAMPLE,images_percent=images_percent) 
 images_list = list(toy_images.image)
-
 # 80% is trained and 20% is validation
 n_train = int(IMAGE_SAMPLE*0.8)
 n_val = IMAGE_SAMPLE-n_train
 train_images = images_list[:n_train]
 val_images = images_list[n_train:]
-
 # Change the level to 0 or 1 for toy set
 toy_images.level = toy_images.level.apply(levelset)
 
+##############
+#TEST SAMPLE
+##############
+IMAGE_SAMPLE = 5000
+images_percent = [50,5,10,15,20]
+toy_test_images = select_toy_images(test_label,N=IMAGE_SAMPLE,images_percent=images_percent) 
+test_images_list = list(toy_test_images.image)
+toy_test_images.level = toy_test_images.level.apply(levelset)
+toy_test_images.groupby(['level']).count()
+test_labels = toy_test_images.level.values
 
 ###########################
 # COPY THE IMAGES
@@ -302,6 +315,7 @@ toy_images.level = toy_images.level.apply(levelset)
 # Copy images to pre-created train/ directory
 from shutil import copyfile
 
+# Copy train images
 for i in range(len(images_list)):
     image_class = toy_images.iloc[[i],[1]].values[0][0]
     image_name = toy_images.iloc[[i],[0]].values[0][0]
@@ -309,12 +323,23 @@ for i in range(len(images_list)):
     image_loc = image_dir+image_name+'.jpeg'
     class_dir = 'class_'+str(image_class)
     if image_name in train_images:              
-        out_dir = os.getcwd()+'/Retinal-Images/train_new/'+class_dir+'/'
+        out_dir = os.getcwd()+'/Retinal-Images/train/'+class_dir+'/'
         copy_loc = out_dir+image_name+'.jpeg'
     else:
         out_dir = os.getcwd()+'/Retinal-Images/val/'+class_dir+'/'
         copy_loc = out_dir+image_name+'.jpeg'
                
+    copyfile(image_loc,copy_loc)
+
+# Copy test images
+for i in range(len(test_images_list)):
+    image_class = toy_test_images.iloc[[i],[1]].values[0][0]
+    image_name = toy_test_images.iloc[[i],[0]].values[0][0]
+    image_dir = os.getcwd()+'/Retinal-Images/test_resize_224/'
+    image_loc = image_dir+image_name+'.jpeg'
+    class_dir = 'class_'+str(image_class)
+    out_dir = os.getcwd()+'/Retinal-Images/test/test/'
+    copy_loc = out_dir+image_name+'.jpeg'               
     copyfile(image_loc,copy_loc)
 
 # Set the default values
@@ -328,7 +353,16 @@ batch_size = 10
 steps_per_epoch = int(n_train/batch_size)
 validation_steps = int(n_val/batch_size)
 
-val_datagen = ImageDataGenerator()
+##############################################
+# DEFINE IMAGE BATCHES FOR TEST,VAL and TRAIN
+##############################################
+val_datagen = ImageDataGenerator(rescale=1./255)
+test_datagen = ImageDataGenerator(rescale=1./255)
+test_generator = test_datagen.flow_from_directory(
+         'Retinal-Images/test_new',
+         target_size=(224, 224),
+         batch_size=10)
+
 train_datagen = ImageDataGenerator(
         rescale=1./255,
         shear_range=0.2,
@@ -363,3 +397,10 @@ model.fit_generator(
 # SAVE THE MODEL
 ###################
 save_model(model)
+
+###################
+# PREDICT TEST
+###################
+pred=model.predict_generator(test_generator,verbose=1)
+cnf = confusion_matrix(test_labels, pred)
+tn, fp, fn, tp = cnf.ravel()
