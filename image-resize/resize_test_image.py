@@ -41,4 +41,6 @@ def preprocess(image,scale=128):
     
     image =  cv2.resize(image, (width, height),
         interpolation=inter)
-    return img_to_array(image)
+    image_arr = img_to_array(image)
+    image_arr = image_arr/255.0
+    return image_arr
