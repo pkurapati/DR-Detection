@@ -2,7 +2,7 @@ import cv2
 from keras.preprocessing.image import img_to_array
 import imutils
 
-def preprocess(image,scale=128):
+def preprocess(image,scale=224):
     """ preprocess the test image and covert to array """
     inter=cv2.INTER_AREA
     (h, w) = image.shape[:2]
