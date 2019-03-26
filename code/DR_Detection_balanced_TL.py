@@ -648,7 +648,7 @@ valList = list(val_image_list)
 image_class_proba_list = []
 image_class_list = []
 for image in testList:
-    image_loc = './Retinal-Images/test_resize_224/' + image + '.jpeg'
+    image_loc = './Retinal-Images/test_resize_224_new/' + image + '.png'
     image_test = cv2.imread(image_loc)
     image_test_mod = preprocess(image_test)
     image_test_pp_mod = np.expand_dims(image_test_mod,0)
@@ -720,7 +720,7 @@ print("TN: {},FP: {}, FN: {}, TP:{}".format(tn,fp,fn,tp))
 val_image_class_proba_list = []
 val_image_class_list = []
 for image in valList:
-    image_loc = './Retinal-Images/train_resize_224/' + image + '.jpeg'
+    image_loc = './Retinal-Images/train_resize_224_new/' + image + '.png'
     image_test = cv2.imread(image_loc)
     image_test_mod = preprocess(image_test)
     image_test_pp_mod = np.expand_dims(image_test_mod,0)
@@ -767,7 +767,7 @@ model_vgg = load_model('./model_architecture_vgg_2019-03-2535K_aug.json',
 image_class_proba_list = []
 image_class_list = []
 for image in testList:
-    image_loc = './Retinal-Images/test_resize_224/' + image + '.jpeg'
+    image_loc = './Retinal-Images/test_resize_224_new/' + image + '.png'
     image_test = cv2.imread(image_loc)
     image_test_mod = preprocess(image_test)
     image_test_pp_mod = np.expand_dims(image_test_mod,0)
@@ -810,7 +810,7 @@ print("TN: {},FP: {}, FN: {}, TP:{}".format(tn,fp,fn,tp))
 val_image_class_proba_list = []
 val_image_class_list = []
 for image in valList:
-    image_loc = './Retinal-Images/train_resize_224/' + image + '.jpeg'
+    image_loc = './Retinal-Images/train_resize_224_new/' + image + '.png'
     image_test = cv2.imread(image_loc)
     image_test_mod = preprocess(image_test)
     image_test_pp_mod = np.expand_dims(image_test_mod,0)
